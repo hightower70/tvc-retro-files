@@ -1,0 +1,4 @@
+# TVC Disk Formatter
+This folder contains disk formatter utilities. The disk will be formatted in UPM (CP/M) format. The utility comes in two version, one for 35 track dvie (FORMAT35) like MOM1800/900 or the original factory produced, 40 track disk drive (FORMAT40). The program uses direct floppy controller access, so in emulation might not work correctly. 
+
+The source code is included as well. It was written in TVC-BASIC 1.2 with some assembly routines for time sensitive data communication. The compiled assembly code is locared in the first two REM lines. The assembly source is located in the Basic source after line 900. To compile you will need sylviASS (see the directory above). The sylviASS must be loaded in advance and run it. After if gives back the command prompt you can load the "format" program and compile it with "RUN 900" command. 
