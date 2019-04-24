@@ -1,0 +1,1951 @@
+	title	"T V C UPM BIOS"
+;==================================================;
+;                                                  ;
+; T V C UPM Bios rutinok                           ;
+; ==========================                       ;
+;                                                  ;
+; Irta: Vac 1988.06.01-09.01                       ;
+; SylviASS-bol M80-ba attette es hangolta: Zsiga   ;
+; Magyar ekezetek 1989.01.25 - 02.28 Zsiga         ;
+;                                                  ;
+;                                                  ;
+;                                                  ;
+;==================================================;
+	.Z80
+	cseg
+	extrn	ccpcold,clistart,mdosentry
+MUPM	EQU	0B0H
+MSCREEN	EQU	90h
+;
+	subttl	" Bios torzs "
+	page
+
+Xboot::	JP	BOOT
+XWBOOT:	JP	WBOOT
+	JP	CONST
+	JP	CONIN
+	JP	CONOUT
+	JP	LIST
+	JP	PUNCH
+	JP	READER
+	JP	HOME
+	JP	SELDSK
+	JP	SETTRK
+	JP	SETSEC
+	JP	SETDMA
+	JP	READ
+	JP	WRITE
+	JP	LISTST
+	JP	SECTRA
+	JP	SETTIM
+	JP	GETTIM
+	JP	GETTAB
+	JP	WBOOT
+	JP	WBOOT
+	JP	WBOOT
+	JP	MON
+;**** RUTINOK ****
+;
+	subttl	" Video kezeles "
+	page
+
+CONOUT:	LD	(USTACK),SP
+	LD	SP,biosstack
+	di
+	CALL	SCREEN
+	XOR	A
+	LD	(CURV),A
+	LD	A,C
+	PUSH	AF
+	CALL	CSRMKI
+	LD	A,(CURC)
+	OR	A
+	JP	NZ,CURCIM
+	POP	AF
+	CP	32
+	JR	NC,NEMVEZ
+	ADD	A,A
+	LD	E,A
+	LD	D,0
+	LD	HL,VEZTAB
+	ADD	HL,DE
+	LD	E,(HL)
+	INC	HL
+	LD	A,(HL)
+	LD	D,A
+	OR	E
+	JR	Z,VEGE
+	EX	DE,HL
+	LD	(UGR+1),HL
+UGR:	CALL	0
+	JR	VEGE
+;
+SCREEN:	LD	B,MSCREEN
+LAPOZZ: LD	A,(PCONF)
+	CP	B
+	RET	Z
+	LD	A,B
+	LD	(PCONF),A
+	OUT	(2),A
+	RET
+;
+UPM:	LD	b,MUPM
+	JR	LAPOZZ
+;
+NEMVEZ: CP	128+32
+	JR	NC,VEGE
+	SUB	32
+	LD	L,A
+	LD	H,0
+	ADD	HL,HL
+	PUSH	HL
+	ADD	HL,HL
+	ADD	HL,HL
+	POP	DE
+	ADD	HL,DE
+	LD	DE,CHTAB
+	ADD	HL,DE
+	EX	DE,HL
+	LD	A,(CURI)
+	LD	C,A
+	CALL	MAS2
+	CALL	JOBB
+	JR	VEGE
+;
+JOBB:	LD	HL,CURX
+	INC	(HL)
+	LD	A,(HL)
+	CP	64
+	RET	C
+;
+	LD	(HL),0
+LE:	LD	HL,CURY
+	INC	(HL)
+	LD	A,(HL)
+	CP	24
+	RET	C
+	DEC	(HL)
+ROLL:	LD	HL,33408
+	LD	DE,32768
+	LD	BC,14720
+	LDIR
+
+ROLT:	LD	HL,47488
+	LD	DE,47489
+	LD	BC,639
+	LD	A,(CURI)
+	LD	(HL),A
+	LDIR
+	RET
+;
+VEGE:	LD	HL,(CURX)
+	CALL	SZAM
+	LD	(CURA),HL
+	LD	DE,CURM
+	LD	B, 10
+CIK6:	LD	A,(HL)
+	LD	(DE),A
+	INC	DE
+	PUSH	BC
+	LD	BC,64
+	ADD	HL,BC
+	POP	BC
+	DJNZ	CIK6
+	LD	A,(CURK)
+	OR	A
+	JR	Z,VE1
+	CALL	CSRKI
+	LD	A,0FFh
+	LD	(CURV),A
+	LD	(VILK+1),A
+	LD	A,20
+	LD	(VILK),A	
+
+ve1: 	CALL	UPM
+ 	LD 	SP,(USTACK)
+ 	EI 
+ 	RET
+;
+SZAM:	PUSH	HL
+ 	POP	BC
+ 	INC	B
+ 	LD 	DE,640
+ 	LD	HL,32768-640
+ADJA:	ADD	HL,DE
+ 	DJNZ	ADJA
+ 	ADD	HL,BC
+ 	RET
+;
+E23:	LD	A,(CURY)
+ 	CP	23
+ 	RET	NZ
+ 	POP	HL
+ 	RET
+;
+VLF:	XOR	A
+ 	LD	(CURX),A	;CURSOR LE,SOR ELEJE
+ 	JR 	LE
+;
+VCR: 	XOR	A
+ 	LD	(CURX),A
+ 	RET	;CURSOR SOR ELEJE
+;
+VIOF:	XOR	A
+ 	JR	TOV3	;INVERZ KI
+VION:	LD	A,0FFH	;INVERZ BE
+TOV3:	LD	(CURI),A
+ 	RET
+;
+VCLS:	LD	HL,32768	; KEPERNYO TORLES+HOME
+ 	LD	DE,32769
+ 	LD	A,(GRF)
+ 	OR	A
+ 	JR 	Z,NGR
+ 	LD	BC,15359+768
+ 	JR 	YGR
+NGR:	LD	BC,15359
+YGR:	LD	A,(CURI)
+ 	LD	(HL),A 
+ 	LDIR
+;
+VHOM:	LD	HL,0
+ 	LD	(CURX),HL	;CURSOR -->0,0
+ 	RET
+;
+FEL:	LD	HL,CURY
+ 	LD	A,(HL)
+ 	OR	A	;CURSOR EGY SORRAL FEL
+ 	RET	Z
+ 	DEC	(HL)
+
+ RET
+
+BAL:	LD	HL,CURX
+ 	LD	A,(HL)
+ 	OR	A	;CURSOR BALRA
+ 	JR	Z,TOV4
+ 	DEC	(HL)
+ 	RET
+TOV4:	INC	HL
+ 	LD	A,(HL)
+ 	OR	A
+ 	RET	Z
+ 	DEC	HL
+ 	LD	(HL),63 
+ 	JR	FEL
+;
+VDL:	LD	HL,(CURX)
+ 	LD	A,H	;SORTORLES
+ 	LD	L,0
+ 	CP	23
+ 	JP	Z,ROLT
+ 	LD	(CURX),HL
+ 	CALL	SZAM
+ 	EX	DE,HL
+ 	LD	HL,47487
+ 	AND	A
+ 	SBC	HL,DE
+ 	PUSH	HL
+ 	LD	HL,640
+ 	ADD	HL,DE
+ 	POP	BC
+ 	INC	BC
+ 	LDIR
+ 	JP	ROLT
+;
+BEL:	LD	BC,7178
+	JP	DUDA 	;DUDA
+;
+VCOF:	XOR	A
+	JR	TOV5	;CURSOR NEM VILLOG
+VCON:	LD	A,0FFh	;CURSOR VILLOG
+TOV5:	LD	(CURK),A
+	RET
+;
+CUCI:	LD	A,2
+	LD	(CURC),A
+	RET	;CURSOR-CIMZES
+;
+CURCIM:	DEC A
+	LD	(CURC),A
+	CP	1
+	JR	Z,SOR
+	POP	AF
+	CP	64
+	JP	NC,VEGE
+	LD	(CURX),A
+;
+	JP	VEGE
+SOR:	POP	AF
+	CP	24
+	JP	NC,VEGE
+	LD	(CURY),A
+	JP	VEGE
+;
+DELE:	LD	HL,(CURX)
+	LD	L,63	;TORLES A SOR VEGEIG
+	CALL	SZAM
+	LD	DE,(CURA)
+	AND	A
+	SBC	HL,DE
+	LD	(MBC),HL
+	LD	(MHL),DE
+ 	LD	B,10
+	LD	HL,(MHL) 
+CIK4:	PUSH	BC
+	PUSH	HL
+	POP	DE
+	INC	DE
+	LD	BC,(MBC)
+	LD	A,(CURI)
+	LD	(HL),A
+	LD	A,C
+	OR	A
+	JR	Z,TOV6
+	LDIR
+TOV6:	LD	HL,(MHL)
+	LD	BC,64
+	ADD	HL,BC
+ 	LD	(MHL),HL
+	POP	BC
+	DJNZ	CIK4
+	RET
+;
+DESE:	CALL	DELE
+	CALL	E23	;TOROL A KEPERNYO VEGEIG
+	LD	HL,(CURX)
+	LD	L,0
+	INC	H
+	CALL	SZAM
+	PUSH	HL
+	INC	HL
+	PUSH	HL
+	LD	HL,48127
+	POP	DE
+	AND	A
+	SBC	HL,DE
+	PUSH	HL
+	POP	BC
+	INC	BC
+	POP	HL
+	LD	A,(CURI)
+	LD	(HL),A
+	LDIR
+;
+	RET
+
+ISLI:	LD	HL,(CURX)
+	LD	L,0	;SORBESZURAS
+      	PUSH	HL
+       	CALL	SZAM
+       	LD	(CURA),HL
+       	POP	HL
+       	LD	(CURX),HL
+       	LD    	A,H
+       	CP	23
+       	JR    	NZ,TOV7
+       	JP    	ROLT
+TOV7:  	CALL  	SZAM
+       	LD    	DE,47487
+       	EX    	DE,HL
+       	AND   	A
+       	SBC   	HL,DE
+       	PUSH  	HL
+       	POP   	BC
+       	LD    	HL,47487
+       	LD    	DE,48127
+       	LDDR
+       	JP    	DELE
+;
+DEL:   	LD    	HL,(CURX)
+       	LD    	A,L
+       	OR    	A	;DELETE
+       	RET   	Z
+       	LD    	A,64
+       	SUB   	L
+       	LD    	C,A
+       	LD    	B,0
+       	PUSH	BC
+       	CALL  	SZAM
+       	PUSH  	HL
+       	POP   	DE
+       	DEC   	DE
+       	POP   	BC
+       	LD    	A,10
+CIK10: 	PUSH  	BC
+       	PUSH  	HL
+       	PUSH  	AF
+       	LDIR
+       	LD    	A,(CURI)
+       	LD    	(DE),A
+       	POP   	AF
+       	POP   	HL
+       	LD    	BC,64
+       	ADD   	HL,BC
+       	PUSH  	HL
+       	POP   	DE
+       	DEC   	DE
+       	POP   	BC
+       	DEC   	A
+       	JR    	NZ,CIK10
+;
+      	JP     	BAL
+;
+VINS:	LD     	HL,(CURX)
+      	LD     	A,63	;INSERT
+      	SUB    	L
+      	LD    	C,A
+      	LD	B,0
+	PUSH   	BC
+      	LD    	L,63
+      	CALL 	SZAM
+      	PUSH   	HL
+      	POP    	DE
+      	DEC    	HL
+      	POP    	BC
+      	LD     	A,10
+CIK11:	PUSH  	BC
+      	PUSH   	HL
+      	PUSH   	AF
+      	LD     	A,C
+      	OR     	A
+      	JR     	Z,TOV9
+      	LDDR
+TOV9: 	LD    	A,(CURI)
+      	LD     	(DE),A
+      	POP    	AF
+      	POP    	HL
+      	LD     	BC,64
+      	ADD    	HL,BC
+      	PUSH   	HL
+      	POP    	DE
+      	INC    	DE
+      	POP    	BC
+      	DEC    	A
+      	JR     	NZ,CIK11
+      	RET
+;
+LENTKI:	PUSH	AF
+      	LD     	A,(GRF)
+      	OR     	A
+     	POP    	DE
+      	RET    	NZ
+      	PUSH   	DE
+      	POP    	AF
+      	PUSH   	HL
+      	SUB    	32
+      	LD     	L,A	;25. SORBA IRAS
+      	LD     	H,0
+      	ADD    	HL,HL
+      	PUSH   	HL
+      	ADD    	HL,HL
+      	ADD    	HL,HL
+      	POP    	DE
+      	ADD    	HL,DE
+      	LD     	DE,CHTAB
+      	ADD    	HL,DE
+      	PUSH   	HL
+;
+      	LD    	HL,48256
+      	LD    	DE,(LENTX)
+      	LD    	D,0
+      	ADD   	HL,DE
+      	POP   	DE
+      	LD    	C,0FFh
+      	CALL  	MAS3
+      	POP  	HL
+      	RET
+;
+LENPOS:	LD	(LENTX),A
+LENBLK:	LD	A,(HL)
+      	OR    	A
+      	RET   	Z
+      	CALL  	LENTKI
+      	LD    	A,(LENTX)
+      	INC   	A
+      	LD    	(LENTX),A
+      	INC   	HL
+      	CP    	64
+     	JR    	NZ,LENBLK
+      	XOR   	A
+      	LD    	(LENTX),A
+      	RET
+;
+TIZKI:	PUSH	AF
+      	LD    	A,B
+      	LD    	(LENTX),A
+      	POP   	AF
+      	LD    	B,0
+KIV:	SUB   	10
+      	INC   	B
+      	JR    	NC,KIV
+      	ADD   	A,58
+      	PUSH  	AF
+      	LD    	A,B
+      	ADD   	A,47
+      	CALL  	LENTKI
+      	LD    	HL,LENTX
+      	INC   	(HL)
+      	POP   	AF
+      	CALL  	LENTKI
+      	RET
+;
+TRSEKI:	DI
+      	LD    	(USTACK),SP
+      	LD   	SP,biosstack
+     	CALL  	SCREEN
+     	LD    	B,59
+     	LD    	A,(SEC)
+     	CALL  	TIZKI
+     	LD    	B,48
+     	LD    	A,(TRK)
+     	CALL  	TIZKI
+     	CALL  	UPM
+     	LD    	SP,(USTACK) ;11,8
+;
+	ei
+	RET
+; 
+	subttl " IT es KEYBOARD Kezeles"
+	Page 
+
+IRQIN:	di
+      	PUSH	HL
+      	PUSH	BC
+      	PUSH	DE
+      	PUSH	AF
+      	LD   	A,(LENTX)
+      	PUSH 	AF
+      	LD   	(ITST),SP
+      	LD   	SP,itstack
+      	CALL 	SCREEN
+      	LD   	A,(CURV)
+      	OR   	A
+      	JR   	Z,TOV8
+      	LD   	HL,VILK
+      	DEC  	(HL)
+      	JR   	NZ,TOV8
+      	LD   	A,20
+      	LD   	(HL),A
+      	INC  	HL
+      	LD   	A,(HL)
+      	XOR  	0FFh
+      	LD   	(HL),A
+      	JR   	Z,TO8
+      	CALL 	CSRKI
+      	JR   	TOV8
+TO8:  	CALL 	CSRMKI
+TOV8: 	LD   	HL,(IORAK)
+      	DEC  	HL
+      	LD   	(IORAK),HL
+      	LD   	A,L
+      	OR   	H
+        JR	NZ,TOV10
+      	LD   	HL,2986
+      	LD   	(IORAK),HL
+      	LD   	A,(PERC)
+      	INC  	A
+      	LD   	(PERC),A
+      	CP   	60
+      	JR   	NZ,TOV10
+      	XOR  	A
+      	LD   	(PERC),A
+      	LD   	A,(IORA)
+      	INC  	A
+      	LD   	(IORA),A
+      	CP   	24
+      	JR   	C,TOV10
+      	XOR  	A
+      	LD   	(IORA),A
+TOV10:	LD  	B,6
+      	LD   	A,(IORA)
+      	CALL	TIZKI
+      	LD   	B,9
+      	LD   	A,(PERC)
+      	CALL 	TIZKI
+;
+      	LD   	HL,SND
+      	LD   	A,(HL)
+      	CP   	1
+      	JR   	C,KIKAP
+      	DEC  	(HL)
+      	JR   	NZ,KIKAP
+      	XOR  	A
+      	OUT  	(5),A
+KIKAP:	LD  	HL,(MOTKES)
+      	LD   	A,H
+      	OR   	A
+      	JR   	NZ,CSOK
+      	LD   	A,L
+      	CP   	1
+      	JR   	C,WVIL
+      	JR   	NZ,CSOK
+      	LD   	A,(MOTRE)
+      	LD   	C,A
+      	XOR  	A
+      	OUT  	(C),A
+      	LD   	(MMOT),A
+      	DEC  	A
+      	LD   	(MMOT+1),A
+CSOK: 	DEC  	HL
+      	LD   	(MOTKES),HL
+WVIL: 	LD   	HL,WRTFLG
+      	LD   	A,(HL)
+      	OR   	A
+      	JR   	Z,KEY
+      	INC  	HL
+      	DEC  	(HL)
+      	JR   	NZ,KEY
+      	LD   	A,15
+      	LD   	(HL),A
+      	INC  	HL
+      	LD   	A,(HL)
+      	XOR  	0FFh
+      	LD   	(HL),A
+      	LD   	A,58
+      	LD   	(LENTX),A
+      	JR   	NZ,WT1
+      	LD   	A,32
+WT1:  	CALL 	LENTKI
+;
+KEY:  	LD   	C,3
+      	LD   	HL,KT+8
+      	LD   	B,8	;KEYBOARD  ELLENORZES
+KC0:  	OUT  	(C),B
+      	IN   	A,(58h)
+      	XOR  	255
+      	LD   	(HL),A
+      	DEC  	HL
+      	DEC  	B
+      	JP   	P,KC0
+      	LD   	HL,LK
+      	DEC  	(HL)
+;
+       	JR   	NZ,KT2
+       	LD   	(HL),1
+        LD   	A,(KT+6)
+       	BIT  	5,A
+       	JR   	Z,KT2
+       	INC  	HL
+       	LD   	A,(HL)
+       	XOR   	255
+       	LD    	(HL),A
+       	LD    	A,34
+       	LD    	HL,TO
+       	JR    	Z, KT4
+       	LD    	HL,LO
+ KT4:  	CALL  	LENPOS
+       	LD    	A,20
+       	LD    	(LK),A
+ KT2:  	LD    	HL,KT+7
+       	LD   	A,3
+       	BIT  	0,(HL)
+       	JR   	NZ,AL
+       	DEC  	A
+      	BIT   	A,(HL)
+      	JR    	NZ,AL
+      	DEC   	A
+      	DEC   	HL
+      	BIT   	3,(HL)
+      	JR    	NZ,AL
+      	DEC   	A
+ AL:  	LD    	HL,VF
+      	CP    	(HL)
+      	JR    	Z,SEM
+      	PUSH  	AF
+      	LD    	A, (VF)
+      	PUSH  	AF
+      	CALL  	KSZ
+      	LD    	HL,TO
+      	CALL  	LENPOS
+     	POP    	AF
+     	CP	3
+     	JR     	NZ,AL1
+     	LD     	A,(ALPU)
+     	OR     	A
+     	JR     	Z,AL1
+     	POP    	AF
+     	JP     	ALPUKI
+AL1:	POP    	AF
+     	LD     	(VF),A
+     	CALL   	KSZ
+     	CALL   	LENPOS
+SEM:	LD     	HL,KT+6
+     	LD     	A,(HL)
+     	AND    	11010111b
+     	LD     	(HL),A
+     	INC    	HL
+     	LD     	A,(HL)
+     	AND    	11101110b
+;
+      	LD    	(HL),A
+     	INC   	HL
+      	XOR   	A
+      	LD    	(VF+2),A
+      	LD    	A,(HL)
+      	AND   	00000110b
+      	JR    	Z,EGY
+      	LD    	A,(HL)
+      	AND   	01100000b
+      	JR    	Z,EGY
+      	LD    	A,255
+      	LD    	(VF+2),A
+      	LD	A, (VF+1)
+      	OR    	A
+      	LD	A,10011111b
+      	JR    	Z,KT5
+      	LD	A,11111001b
+KT5:  	AND   	(HL)
+      	LD    	(HL),A
+EGY:	LD	B,9
+      	LD    	HL,DEKT
+      	LD    	DE,KT
+KC2: 	LD    	A,(DE)
+      	LD    	C,8
+KC1:  	srl   	a
+      	JR    	C,VAN
+      	INC   	HL
+      	DEC   	C
+      	JR    	NZ,KC1
+      	INC   	DE
+      	DJNZ	KC2
+      	XOR   	A
+      	LD	(EK),A
+      	LD 	(KK),A
+      	JP	VI
+VAN:  	LD    	A,(HL)
+      	LD    	B,A
+      	LD    	A,(VF)
+      	OR    	A
+      	JR    	Z,LV
+      	DEC   	A
+      	JR    	Z,SFT
+      	DEC   	A
+      	JP    	NZ, AT
+      	CALL  	BET
+      	LD    	B,14
+      	JR    	Z,VT1
+      	LD    	B,64
+      	JR    	NC,BEPU
+VT1:	SUB   	B
+      	JR    	BEPU
+;
+LV:	LD	A,(LK+1)
+      	OR    	A
+      	LD    	A,B
+      	JR    	Z,BEPU
+      	;LD   	A,B
+      	CP   	65
+      	JR   	C,BEPU
+      	CP   	91
+      	JR   	C,LV12
+      	CP   	80H
+      	JR   	C,BEPU
+      	ADD  	A,10H
+      	JR   	BEPU
+LV12:	ADD  	A,32
+      	JR   	BEPU
+;
+SFT:  	LD  	A,(LK+1)
+      	OR   	A
+      	LD   	A,B
+      	JR   	Z,SH1
+      	CP  	65
+      	JR   	C,SH1
+      	CP   	91
+      	JR   	C,BEPU
+SH1:  	CP   	80H
+      	JR   	C,SH12
+      	LD   	B,10H
+      	JR   	VT2
+SH12: 	CALL 	BET
+      	LD   	B,50
+      	JR   	Z,VT2
+      	LD	B,32 
+      	JR   	NC,SK
+VT2:  	ADD  	A,B
+      	JR   	BEPU
+SK:	LD   	HL,ST
+      	LD   	B,31
+      	LD   	C,33
+SC1:  	CP   	(HL)
+      	JR   	Z,MV
+      	INC  	HL
+      	INC  	C
+     	DJNZ 	SC1
+      	JR   	BEPU
+MV:   	LD   	A,C
+;      	JR   	BEPU
+;
+BEPU: 	PUSH	AF
+      	LD   	HL,EK
+      	CP   	(HL)
+      	JR   	Z,BP2
+      	LD   	A,(DLY)
+      	OR	A
+      	JR   	Z,BP2
+      	LD   	A,(VF+2)
+      	OR   	A
+      	JR   	NZ,BP2
+      	LD   	(HL),0
+      	JR   	BP3
+BP2: 	LD   	HL,KK
+;
+      	LD   	A,(HL)
+      	OR   	A
+      	JR   	Z,BP3
+      	DEC  	(HL)
+      	POP  	AF
+      	JR   	VI
+ BP3: 	POP  	AF
+      	CALL 	RAK
+      	JR   	KVI
+;
+AT:  	LD   	A,(KK)
+      	OR   	A
+      	JR   	NZ,VI
+      	CALL 	BET1
+      	JP   	NC,ASZM
+KVI: 	LD   	HL,EK
+      	LD   	C,A
+      	LD   	B,RATE
+      	LD   	D,0
+      	CP   	(HL)
+      	JR   	Z,KT6
+      	LD   	A,(HL)
+      	OR   	A
+      	JR   	NZ,KT6
+      	LD   	B,DELAY
+      	DEC  	D
+KT6:  	LD   	(HL),C
+      	LD   	A,B
+      	LD   	(KK),A
+      	LD   	A,D
+      	LD   	(DLY),A
+      	LD   	A,(VF+1)
+      	XOR  	255
+      	LD   	(VF+1),A
+;
+VI:   	CALL 	UPM
+      	LD  	SP,(ITST)
+      	POP 	AF
+      	LD   	(LENTX),A
+      	POP 	AF
+      	POP 	DE
+      	POP 	BC
+      	POP 	HL
+      	OUT  	(7),A
+      	ei
+     	RET  	;UPM
+;
+KSZ: 	OR   	A
+     	JR	Z,KSZ1
+     	DEC  	A
+     	LD   	L,A
+     	LD   	H,0
+     	ADD  	HL,HL
+     	ADD  	HL,HL
+     	ADD  	HL,HL
+     	LD   	DE,BK
+;
+	ADD	HL,DE
+      	LD	A,(HL)
+	INC  	HL
+      	RET
+KSZ1:	LD   	HL,BK+6
+      	LD   	A,15
+      	RET
+;
+BET:  	LD   	A,B
+       	CP	45
+      	RET
+      	CP   	64
+      	JR   	C,NEM
+      	CP   	95
+      	RET  	C
+NEM:  	OR	A
+      	RET
+;
+DUDA: 	LD   	A,(SE)
+      	OR   	A
+      	RET  	Z	;HANG C-HOSSZ,B-FREK
+      	LD   	A,(M6)
+      	ADD  	A,60
+      	OUT  	(6),A
+      	LD   	A,255
+      	OUT  	(4),A
+      	LD   	A,B
+      	OUT  	(5),A
+      	LD   	A,C
+      	LD   	(SND),A
+      	RET
+;
+CONIN: 	LD  	HL,KPO
+      	LD   	A,(BPUF)
+      	CP   	(HL)
+      	JR   	Z,CONIN
+      	LD   	A,(HL)
+      	INC  	A
+      	CP   	33
+      	JR   	C,KP1
+      	LD   	A,1
+KP1:  	LD   	(HL),A
+      	LD   	HL,BPUF
+      	LD   	E,A
+      	LD   	D,0
+      	ADD  	HL,DE
+      	LD   	A,(HL)
+      	LD   	L,A
+      	RET
+;
+RAK:   	PUSH 	AF
+      	LD   	HL,BPUF
+      	LD   	A,(HL)
+      	INC  	A
+      	CP   	33
+      	JR   	C,RK1
+;
+     	LD 	A,1
+RK1:	PUSH   	HL
+      	LD     	HL,KPO
+      	CP     	(HL)
+      	JR     	NZ,RK2
+      	LD     	BC, 7681
+      	POP    	HL
+      	POP    	AF
+      	JP     	DUDA
+RK2:  	POP    	HL
+      	LD     	(HL),A
+      	LD     	E,A
+      	LD     	D,0
+      	ADD    	HL,DE
+      	POP    	AF
+      	LD     	(HL),A
+      	RET
+;
+BET1: 	LD     	A,B
+      	CP     	65 
+      	CCF
+      	RET    	NC
+      	CP     	91
+      	RET
+;
+CSRKI: 	LD    	DE, CURS
+MAS1: 	LD     	C,0
+MAS2: 	LD     	HL,(CURA)
+MAS3: 	LD     	B,10
+MA1:  	LD     	A,(DE)
+      	XOR    	C
+      	LD     	(HL),A
+      	INC    	DE
+      	PUSH   	BC
+      	LD     	BC,64
+      	ADD    	HL,BC
+      	POP    	BC
+	DJNZ   	MA1
+      	RET
+;
+CSRMKI:	LD   	DE,CURM
+      	JR     	MAS1
+;
+ASZM: 	CP    	48
+      	JR    	C,AVI
+      	CP    	58
+      	JR    	NC,AVI
+      	LD    	HL,ALPU
+      	LD     	A,(HL)
+      	CP     	3
+      	JR     	NC,ALPUKI
+      	INC    	(HL)
+      	LD     	E,(HL)
+      	LD     	D,0
+      	ADD    	HL,DE
+      	LD     	(HL),B
+;
+       	JR     	AVI
+ALPUKI:	LD   	DE,ALPU
+       	LD     	A,(DE)
+       	OR     	A
+       	JR     	Z,APH
+       	LD     	HL,0
+AC1:  	INC    	DE
+       	LD     	A,(DE)
+       	OR     	A
+	JR     	Z,APH
+	ADD    	HL,HL
+	PUSH   	HL
+	ADD    	HL,HL
+	ADD    	HL,HL
+	POP    	BC
+	ADD    	HL,BC
+	SUB    	48
+	LD     	C,A
+	LD     	B,0
+	ADD    	HL,BC
+	JR     	AC1
+APH1: 	LD     	A,H
+	OR     	A
+	JR     	NZ,APH
+	LD     	A,L
+	CALL   	RAK
+APH:  	LD     	HL,0
+	LD     	(ALPU),HL
+	LD     	(ALPU+2),HL
+AVI:  	JP     	KVI
+;
+CONST:	LD    	HL,KPO
+	LD     	A,(BPUF)
+	SUB    (HL)
+	LD     	L,A
+	RET    	Z
+	LD     	A,0FFh ;UPM
+	RET
+;
+LISTST:	in   	a,(59h)
+	bit    	7,a
+	ld     	a,0ffh
+	ret    	nz
+	inc   	a
+	ret
+;
+LIST: 	LD    	A,(PMAGY)
+	OR    	A
+	call  	NZ,conv
+list1:	LD   	A,C
+	PUSH  	AF
+	LD    	BC,0	;UPM
+	ld    	de,1FFFH	; Kb 0.5 PERC
+LC1:	IN    	A,(59h)
+	BIT   	7,A
+	JR    	NZ,LST2
+;
+	DJNZ	LC1 ; HIBAJELZEST !!!!
+	DEC   	de
+	ld    	a,d
+	or	e
+	JR    	NZ,LC1
+	ld    	hl,pnrdy
+	call  	kiir
+	call   	conin
+	cp	"C"-"@"
+	jp    	z,wboot
+	cp     	" "
+	jr    	lc1
+	POP	AF
+	RET
+	dseg
+PNRdy:	defb  	0dh,0ah,"Printer Not Ready",07,07,255
+	cseg
+LST2:	POP   	AF
+	OUT   	(1),A
+	LD    	A,(M6)
+	AND   	01111111b
+	LD    	(M6),A
+	OUT   	(6),A
+	NOP 
+	NOP
+	OR    	10000000b
+	LD    	(M6),A
+	OUT	(6),A
+	LD    	A,0FFh
+	RET
+;
+conv:
+;====
+	ld    	a,c
+	cp	128
+	ret	c	; normal ASCII
+;
+	sub	128-" "
+	ld     (magy),a
+	ld    	b,l@tab
+	ld    	hl,tab
+convl:	ld    	c,(hl)
+	push	bc
+	push  	hl
+	call  	list1
+	pop   	hl
+	inc   	hl
+	pop   	bc
+	djnz  	convl
+	pop   	bc
+	ret
+;
+	dseg
+tab:
+	db     1bh,25h,01h,00h
+magy:	db     	0
+	db     1bh,2bh,0,0
+l@tab   equ    $-tab
+;
+;
+PUNCH:	NOP 
+READER:	XOR 	A
+	RET
+;
+	subttl "Floppy Kezeles" 
+	page
+;
+;*************** 
+;*             *
+;* BIOS FLOPPY *
+;*             *
+;***************
+;
+;**   SUBRUTINOK  **
+WAIT:	PUSH 	BC
+	LD    	BC,0  ;EGY  KIS   VARAKOZAS
+WA1:	NOP
+	NOP
+	DEC	C
+	JR    	NZ,WA1
+	DJNZ  	WA1
+	POP   	BC
+	RET
+;
+BUSY: 	PUSH  	BC
+	LD    	B,0
+	LD    	D,B	;FOGLALT AZ FD1793?
+BUS1:	LD    	A,(COMRE)
+	LD    	C,A
+	IN    	A,(C)
+	BIT   	0,A
+	JR    	Z,BUSKI
+	DEC   	D
+	JR    	NZ,BUS1
+	DJNZ  	BUS1
+	POP   	BC
+	SCF
+	RET  	;HA TUL SOKAIG CF EQU 1
+BUSKI: 	POP  	BC
+	IN    	A,(C)
+	AND   	00011000b	;VAN SEEK-ERROR
+	RET   	Z
+	SCF 
+	RET
+;
+;
+MHIVI:	SCF
+	RET  	;HA HIBA VAN CF EOU 1
+	
+;
+BEALL:	LD   	HL,1000
+	LD    	(MOTKES),HL
+	LD    	HL,MMOT
+	LD    	A,(HL)
+	OR    	A
+	JP    	NZ,MJOVI
+	LD    	A,(COMRE)
+	ADD   	A,8
+	LD    	C,A
+	XOR   	A
+	OUT   	(C),A
+	LD    	A, (MOTRE)
+;
+	LD     	C,A
+	LD      A,64
+	OUT    	(C),A
+	CALL    WAIT
+	LD  	A,(SEL)
+	OR     	64
+	OUT     (C),A
+	LD     	(HL),A
+	CALL   	BUSY
+	JR     	C,MHIVI
+	LD      A,(COMRE)	;MEGSZAKITAS BEAL.
+	LD     	C,A
+	LD      A,11010000b
+	OUT	(C),A
+	LD	B,0
+	LD      B,D	;JON	INDEX INPULZUS?
+VE:	IN	A,(C)
+	BIT     1,A
+	JR     	NZ,VNU
+	DEC    	D
+	JR     	NZ,VE
+	DJNZ   	VE
+	JR      MHIVI	;HA NEM,HIBA
+VNU:	LD      B,0
+	LD      D,B
+VN:	IN     	A,(C)
+	BIT    	1,A
+	JR     	Z,IJO
+	DEC    	D
+	JR     	NZ,VN
+	DJNZ   	VN
+	JR     	MHIVI	;HA NEM,HIBA
+IJO:  	LD      HL,MMOT+1
+	LD     	A,(HL)
+	OR     	A
+	RET    	NZ
+	LD     	(HL),0FFh
+	LD     	HL,FPUF
+	LD      (HL),0
+	IN     	A,(C)
+	BIT    	2,A
+	JR     	NZ,NUL	;FEJ 0-AS TRACK-EN
+	LD     	A,(DATRE)
+	LD     	E,A
+	LD     	B,6
+	LD      A,(COMRE)
+	LD     	C,A	;HA NEM AKKOR HOL?
+	DI
+	LD     	A,11000100b
+	OUT     (C),A
+	LD     	C,E
+VA1:  	INC	C
+VA2:  	IN      A,(C)
+	OR      A
+	JP      Z,VA2
+	JP      P,ERR
+;
+	DEC   	C
+	INI
+	JP      NZ,VA1
+	EI
+NUL:	LD      A,(TRKRE)
+	LD    	C,A
+	LD    	A,(FPUF)
+	OUT     (C),A
+	JR     	MJOVI
+ERR:	EI
+	LD     	A,(COMRE)
+	LD	C,A
+	LD	A,(FEJLEP)
+	OR	8
+	OUT     (C),A
+	CALL 	BUSY
+        JP	C,MHIVI
+MJOVI:	OR     	A
+	RET     ;HA MINDEN JO CF EOU 0
+;
+SEREAD:	LD    	A,(DATRE)
+	LD    	E,A	;SECTOR OLVASAS
+	LD     	B,0
+	LD     	A,(COMRE)
+	LD     	C,A
+	LD     	HL,FPUF
+        DI
+        LD     	A,10000100b
+        OUT   	(C),A
+	LD    	C,E
+VA3:	INC    	C
+VA4:	IN     	A,(C)
+	OR    	A
+	JP    	Z,VA4
+	DEC   	C
+	INI 
+	INC	B
+        INC    	C
+VA6:   	IN     	A,(C)
+	OR     	A
+	JP    	Z,VA6
+	DEC    	C
+	INI
+	JP    	NZ,VA3
+	EI
+	RRCA
+	RET
+;
+
+SEWRIT:	LD	A,15
+	LD      (WRTFLG+1),A	;SECTOR IRAS
+	LD     	A,58
+	LD     	(LENTX),A
+	DI
+	LD     	(USTACK),SP
+	LD     	SP,biosstack
+	PUSH   	AF
+;
+	CALL 	SCREEN
+	POP   	AF
+	CALL 	LENTKI	;UFM
+	CALL 	UPM
+	LD    	SP,(USTACK)
+	ei
+	LD    	HL,MMOT
+	LD    	A,(SECRE)
+	LD    	C,A
+	LD    	A,(BSEC)
+	SUB  	10
+	JR   	C,SW0	;!!!
+	INC   	A
+	set   	7,(hl)
+	JR    	SW1
+SW0:	ADD   	A,10
+	RES   	7,(HL)	;!!!
+SW1: 	OUT   	(C),A
+	LD     	A,(MOTRE)
+	LD     	C,A
+	LD     	A,(HL)
+	OUT    	(C),A	;!!!
+	LD     	A,(DATRE)
+	LD     	E,A
+	LD     	B,0
+	LD     	A,(COMRE)
+	LD     	C,A
+	LD     	HL,FPUF
+	LD     	A,10100100b
+	OUT    	(C),A
+	DI
+	LD     	C,E
+VA7:  	INC    	C
+VA8:  	IN    	A,(C)
+	OR	A
+	JP    	Z,VA8
+	DEC   	C
+	OUTI
+	INC   	B
+	INC   	C
+VAA:   	IN    	A,(C)
+	OR    	A
+	JP    	Z,VAA
+	DEC   	C
+	OUTI
+	JP    	NZ,VA7
+	EI
+	RRCA 
+	RET
+;
+
+SECKON:	LD   	A,(SEC)
+	DEC   	A
+	PUSH   	AF
+	AND   	00000011b
+	LD     	DE,0
+;
+	srl  	a
+	RR	E
+	LD   	D,A
+	LD   	HL,FPUF
+	ADD  	HL,DE
+	LD   	(SECMUT),HL
+	POP  	AF
+	srl  	a
+	srl  	a
+	INC  	A
+	LD   	(SEC+1),A
+	LD   	HL,BSEC
+	CP   	(HL)
+	RET   	NZ
+	DEC   	HL
+	LD    	A,(TRK)
+	CP    	(HL)
+	RET
+;
+TRSEAL:	LD 	HL,TRK
+	LD    	A,(TRKRE)
+	LD    	C,A
+	IN    	A,(C)
+	CP    	(HL)
+	LD    	(BTRK),A
+	JR     	Z,TT1
+	LD     	A,2	;HANYSZOR KELL SEEK
+	LD     	(SEEKHI),A
+	LD     	A,(MAXTRK)
+	AND    	127
+	CP     	(HL)
+	JP     	C,TRHIBA
+	LD	A,(HL)
+	PUSH  	AF
+MEG:	LD   	A,(DATRE)
+	LD   	C,A
+	POP  	AF
+	OUT   	(C),A
+	LD	(BTRK),A
+	DEC  	C
+	DEC  	C
+	DEC  	C
+	LD   	A,(FEJLEP)
+	OR   	00011100b
+	OUT  	(C),A
+	CALL 	BUSY
+	JP   	NC,TT1
+	LD   	HL,SEEKHI
+	DEC  	(HL)
+	JP   	Z,TRHIBA
+	LD   	A,(FEJLEP)
+	OR   	00001100b
+	OUT   	(C),A
+	CALL  	BUSY
+	JP    	C,TRHIBA
+	LD    	A,(TRK)
+;
+	PUSH  	AF
+	JP    	MEG
+;
+TRHIBA:	SCF
+	RET
+;
+TT1:   	XOR   	A
+	LD    	(OLDAL),A
+	LD    	A,(SEC+1)
+	OR    	A
+	JR    	Z,TRHIBA
+	LD    	B,A
+	LD    	HL,MMOT
+	LD    	A,(MAXTRK)
+	BIT   	7,A
+	JR    	Z,TT3
+	LD    	A,B
+	SUB   	10	;KETOLDALAS?
+	JR    	C,S0
+	INC   	A
+	set   	7,(hl)	;1-ES OLDAL
+	PUSH  	AF
+	LD    	A,9
+	LD    	(OLDAL),A
+	POP   	AF
+	JR    	TT4	;!!!
+S0:	ADD   	A,10
+	RES   	7,(HL)	;0-AS OLDAL
+TT4:   	LD    	B,A
+	LD    	A,(MOTRE)
+	LD    	C,A
+	LD    	A,(HL)
+	OUT   	(C),A
+TT3:   	LD    	A,B
+	CP    	10
+	JR    	NC,TRHIBA
+	PUSH  	AF
+	LD    	A,(SECRE)
+	LD    	C,A
+	POP   	AF
+	OUT   	(C),A
+	LD    	HL,OLDAL
+	ADD   	A,(HL)	;!!!
+	LD    	(BSEC),A
+	OR    	A
+	RET
+;
+FIZSEL:	LD    	A,(FSEL)
+	LD    	C,A
+	LD    	A,(LSEL)
+	CP	C
+	RET	Z
+	LD    	A,(FSEL)
+	LD    	(LSEL),A
+	LD    	A,(WRTFLG)
+	OR    	A
+;
+	JR     	Z,SEL1 
+	PUSH    BC
+	CALL   	BEALL 
+	CALL   	SEWRIT 
+	POP    	BC
+	JP     	NC,SEL1 
+	LD   	HL,3
+	RET
+SEL1:	LD     	HL,0 
+	LD    	(MMOT),HL
+	DEC   	HL
+	LD   	(BTRK),HL
+	XOR    	A
+	LD    	(WRTFLG),A 
+	LD     	A,C
+	ADD   	A,A 
+	ADD   	A,A
+	LD    	HL,FEJTAB
+	LD    	D,0 
+	LD    	E,A 
+	ADD   	HL,DE
+	LD	A,(HL) 
+	LD    	(FEJLEP),A 
+	INC   	HL
+	LD	A,(HL) 
+	LD   	(MAXTRK),A 
+	INC   	HL
+	LD    	A,(HL) 
+	LD    	(SEL),A
+	RET
+;******* CP/M DISK RUTINOK ******
+HOME: 	LD      C,0
+SETTRK:	LD 	A,C
+	LD    	(TRK),A	;UPM
+	RET
+SETSEC:	LD    	A,C
+	LD    	(SEC),A	;UPM
+	RET
+SETDMA:	LD	(DMA),BC
+	RET
+SECTRA:	PUSH   	BC
+	POP  	HL 
+	INC   	HL
+	RET
+;
+READ:  	CALL 	TRSEKI 
+	CALL   	FIZSEL 
+	CALL  	BEALL
+	JR    	C,ERROR 
+	CALL  	SECKON 
+	JR    	Z,BENVAN 
+	LD    	A,(WRTFLG)
+	OR   	A
+	JR    	Z,RT1
+	CALL  	SEWRIT 
+	JP     	C,ERROR
+;
+RT1:  	CALL 	TRSEAL
+	JR   	C,ERROR
+	CALL 	SEREAD
+	JR    	C,ERROR
+	XOR   	A
+	LD    	(WRTFLG),A
+BENVAN:	LD   	HL,(SECMUT)
+	LD    	DE,(DMA)
+	LD    	BC,128
+	LDIR
+	XOR   	A
+	RET
+;
+ERROR: 	XOR   	A
+	LD    	(MMOT),A
+	LD    	(WRTFLG),A
+	LD    	HL,0FFFFh
+	LD    	(BTRK),HL
+	LD    	A,(MOTRE)
+	LD    	C,A
+	LD    	A,64
+	OUT   	(C),A
+	LD    	A,1
+	RET
+;
+WRITE: 	LD    	A,C
+	LD    	(IR),A
+	CALL  	TRSEKI
+	CALL  	FIZSEL
+	CALL  	BEALL
+	JR    	C,ERROR
+	CALL  	SECKON
+	JR    	Z,WBEN
+	LD    	A,(WRTFLG)
+	OR    	A
+	JR    	Z,WBEOLV
+	CALL  	SEWRIT
+	JP    	C,ERROR
+	XOR   	A
+	LD    	(WRTFLG),A
+WBEOLV:	CALL	TRSEAL
+	JR    	C,ERROR
+	LD    	A,(IR)
+	CP    	2
+	JR    	Z,WBEN
+	CALL  	SEREAD
+	JR    	C,ERROR
+WBEN:  	LD    	HL,(DMA)
+	LD    	DE,(SECMUT)
+	LD    	BC,128
+	LDIR
+	LD    	A,(IR)
+	DEC   	A
+	JR    	Z,WFEL
+	LD    	A,255
+	LD    	(WRTFLG),A
+;
+	XOR   	A
+	RET
+WFEL:	CALL  	SEWRIT
+	JP    	C,ERROR
+	XOR   	A
+	LD    	(WRTFLG),A
+	RET
+;
+
+SELDSK:	LD  	HL,0
+	LD    	A,C
+	CP	2
+	RET   	NC
+	LD    	(FSEL),A
+	LD    	HL,DPT
+	ADD   	A,A
+	ADD   	A,A
+	ADD   	A,A
+	ADD   	A,A
+	LD    	B,0
+	LD    	C,A
+	ADD   	HL,BC
+	RET
+KIIR:	LD    	A,(HL)
+	CP    	0FFh
+	RET	Z
+	PUSH  	HL
+	LD    	C,A
+	CALL  	CONOUT
+	POP   	HL
+	INC   	HL
+	JR    	KIIR
+	subttl "Boot rutinok" 
+	page
+;
+;**************** 
+;*              *
+;* BOOT RUTINOK *
+;*              *
+;****************
+;
+BOOT:	jp	boot1
+boot2:	Call	SBOOT
+	jp    	ccpcold
+;
+SBOOT:	LD   	C,0
+	CALL  	SELDSK
+	LD    	BC,DRB
+	CALL  	SETDMA
+	LD    	BC,0
+	CALL  	SETTRK
+	LD    	BC,1
+	CALL  	SETSEC
+	CALL  	READ
+	OR    	A
+	JR    	NZ,BERR	; FEJBLCKK
+	LD    	BC,(DRB)
+	LD    	HL,XBOOT
+	LD    	DE,(DRB+4)
+	OR    	A
+	SBC   	HL,DE
+	LD    	A,H
+	OR    	L
+	JR    	NZ,BERR
+	ld    	hl,xboot
+	or    	a
+	sbc   	hl,bc
+	add   	hl,hl
+	ld    	a,h
+	LD    	E,3
+TOLT:	PUSH  	BC
+	PUSH  	AF
+	PUSH  	DE
+	CALL  	SETDMA
+	POP   	BC
+	PUSH  	BC
+	CALL  	SETSEC
+	CALL  	READ
+	OR    	A
+	JR    	NZ,BERR
+	POP   	DE
+	INC   	E
+	POP   	AF
+	POP   	BC
+	LD    	HL,128
+	ADD   	HL,BC
+	PUSH  	HL
+	POP   	BC
+	DEC   	A
+;
+	JR   	NZ,TOLT
+sboot1:	LD	A,0C3h
+	LD   	(0),A
+	LD   	(5),A
+	XOR  	A
+	LD   	(3),A
+	LD   	HL,mdosentry
+	LD   	(6),HL
+	LD   	HL,XWBOOT
+	LD   	(1),HL
+	LD   	A,(4)
+	LD   	C,A
+	ret
+;
+WBOOT:	LD	SP,BOOTSTACK
+	call 	SBOOT
+	jp   	clistart
+;
+BERR:	LD   	HL,BOOTHI
+	CALL 	KIIR
+BRT1:	CALL 	CONIN
+	PUSH 	AF
+	LD   	C,A
+	CALL 	CONOUT
+	POP  	AF
+	CP   	'A'
+	JR   	NZ,BRT2
+MON:	DI
+	LD   	A,0FFh
+	LD   	(0B22h),A
+	LD   	A,80h
+	OUT  	(2),A
+	JP   	0
+BRT2:	CP   	'R'
+	JR   	NZ,BERR
+	JP   	WBOOT
+SETTIM:	LD	A,B
+	LD   	(IORA),A
+	LD   	A,C
+	LD   	(PERC),A
+	RET
+GETTIM:	LD	A,(IORA)
+	LD   	H,A
+	LD   	A,(PERC)
+	LD   	L,A
+	RET
+;
+GETTAB:	LD	HL,M6
+	RET
+;
+	subttl 'adatok' 
+	page
+;
+	dseg
+;******************************************************
+;
+;----------       VIDEO TABLAZATOK        -------------
+;
+;***  VEZERLO KODOK TABLAZATA   ***
+VEZTAB:	DEFW	00
+	DEFW   	00
+	DEFW   	00
+	DEFW   	00
+	DEFW   	00
+	DEFW   	00
+	DEFW   	00
+	DEFW   	BEL
+	DEFW   	BAL
+	DEFW   	00
+	DEFW   	VLF
+	DEFW   	ISLI
+	DEFW   	VHOM
+	DEFW   	VCR
+	DEFW   	DELE
+	DEFW   	DESE
+	DEFW   	0
+	DEFW   	CUCI
+	DEFW   	VCON
+	DEFW   	VCOF
+	DEFW   	VION
+	DEFW   	VIOF
+	DEFW   	VINS
+	DEFW   	BAL
+	DEFW   	JOBB
+	DEFW   	FEL
+	DEFW   	LE
+	DEFW   	00
+	DEFW   	00
+	DEFW   	0
+	DEFW   	VDL
+	DEFW   	VCLS
+;
+;----------     KEYBOARD TABLAZATOK       -------------
+;**** DEKODOLO TABLAZAT ****
+DEKT:	DEFB	35h,33h,32h,30h,36h,82h,31h,34h
+	DEFB   	5Eh,38h,39h,87h,2Ah,83h,84h,37h
+	DEFB   	54h,45h,57h,3Bh,5Ah,40h,51h,52h
+	DEFB   	5Dh,49h,4Fh,85h,5Bh,86h,50h,55h
+	DEFB   	47h,44h,53h,5Ch,48h,3Ch,41h,46h
+	DEFB   	7Fh,4Bh,4Ch,80h,0Dh,88h,81h,4Ah
+	DEFB   	42h,43h,58h,00h,4Eh,00h,59h,56h
+	DEFB   	00h,2Ch,2Eh,1Bh,00h,20h,2Dh,4Dh
+	DEFB   	16h,19h,1Ah,06h,01h,18h,08h,00h
+;
+;**** SHIFT-ELESI TABLAZAT ****
+ST:    	DEFB   	52,50,42,59,53,48,49,56
+	DEFB   	57,0,51,0,0,0,54,0
+	DEFB   	0,0,0,0,0,0,0,0
+	DEFB   	0,46,0,0,55,60,44
+;
+TO:	DEFB   '     ',0
+LO:    	DEFB   'LOCK',0
+BK:   	DEFB   15,'SHIFT',0,0,22,'CTRL',0,0,0,28,'ALT',0,0,0,0
+;
+;------------------   TAROLOK  ------------------------
+;***   BILLENTYUZET TARDLOK ***
+LK:    	DEFB   	20,0
+VF:    	DEFB   	0,0,0
+KK:    	DEFB   	0,0
+RATE  	EQU    	3
+DELAY  	EQU    	30
+EK:    	DEFB   	0
+DLY:  	DEFB   	0
+KT:    	DEFS   	9,0
+ALPU:  	DEFB   	0,0,0,0,0
+;
+KPO:	DEFB   	1	;KIVEVESI MUTATO
+BPUF:  	DEFB   	1      	;BILL.PUFF. MUTATO
+	DEFS   	32,0   	;BILL.PUFF
+;
+;---------------  FLOPPY TARCLOK   --------------------
+COMRE: 	DEFB   	64     	;REG. CIMEK
+TRKRE: 	DEFB   	65
+SECRE:	DEFB   	66
+DATRE: 	DEFB   	67
+MOTRE: 	DEFB   	68
+MMOT:  	DEFB   	0      	;MOT. REG TARTALMA
+	DEFB   	0
+MOTKES:	DEFW  	0      	;MOT. KIKAPCS. KESL.
+SEL:   	DEFB   	1      	;AKT. MEGHAJTO
+LSEL:  	DEFB   	0      	;AKT.LOG.MEGHAjTO
+FSEL:  	DEFB   	0      	;SELEKTALT MEGHAJTO
+DMA:   	DEFW   	80H
+TRK:   	DEFB	0
+SEC:   	DEFB	0
+	DEFB  	0	;FIZIKAI SERCTORCIM 
+FEJLEP: DEFB   	0      	;FEJLEPTETESI IDO
+MAXTRK: DEFB 	128+81	;TRACK-OK SZAMA -1 
+SEEKHI: DEFB   	0       ;SEEK-HIBA SZAMLALO
+SECMUT: DEFW	0       ;128BYTE-OS SEC. CIME
+BTRK: 	DEFB   	255   	;BENTLEVO SEC. HELYEE
+BSEC:	DEFB    255     ;HA FF ERVENYTELEN
+WRTFLG:	DEFB   	00  	;IRTAK EBBE A SEC.-BE
+        DEFB  	15,0    ;A : VILLOGTATASHOZ
+IR:	DEFB	0
+OLDAL:	DEFB 	0 
+BOOTHI:	DEFB 	13,10,'ERROR! A-abort,R-retry',255
+FPUF:
+boot1:	DI
+	LD    	SP,BOOTSTACK
+	IM   	1
+	LD   	A,0C3h
+	LD     	HL,IRQIN
+	LD    	(38h),A
+	LD     	(39h),HL
+	XOR    	A
+	OUT   	(0),A
+	OUT   	(7),A
+	OUT  	(5),A
+	OUT   	(58h),A
+	OUT     (59h),A
+	OUT     (5Ah),A
+        OUT    	(5Bh),A
+	LD    	A,0A0h
+	OUT    	(2),A
+	LD      HL,CRGEN
+	LD     	DE,CHTAB
+	LD    	BC,960
+        LDIR
+	LD    	B,15
+	LD    	HL,VINBYT	;CRTC INICIALIZALAS
+CIK5: 	LD     	A,B
+	OUT   	(70h),A
+	LD     	A,(HL)
+	OUT  	(71h),A
+	INC    	HL
+	DEC   	B
+	JP     	P,CIK5
+	LD  	A,0
+	OUT   	(0),A
+	OUT   	(60h),A
+	LD    	A,16
+	OUT   	(61h),A
+	LD  	A,128
+	OUT 	(6),A
+	LD  	A,MSCREEN
+	OUT  	(2),A
+	LD   	HL,48128
+	LD   	DE,48129
+	LD   	BC,767
+	LD   	A,255
+        LD   	(HL),A
+	LDIR
+	LD   	HL,ALSO
+	XOR  	A
+	CALL  	LENPOS
+	CALL  	UPM
+	LD    	HL,SZKI
+	CALL	KIIR
+	XOR  	A
+	LD   	(4),A
+	JP   	boot2
+;
+ ;***   CRTC INICIALIZALO BYTE-OK
+VINBYT:	DEFB  	255,14,0,0,3,3,3,0,68,63,2,77,50,75,64,99
+SZKI:  	DEFB  	31, "Super TVC-UPM V:1.21 ready",13,10
+        DEFB  	"(c) 1988 Vac&Zsig Miskolc (Hungary)"
+        defb   	13,10
+        defb  	"26/02/1989",13,10,10,0FFh
+
+;*** ALSO SOR SZOVEGE ***
+ALSO:	DEFB	" TIME 00:00           "
+	DEFB   	"                    TRACK:00  SECTOR:00 ",0
+	DEFS   	512-($-fpuf)
+;
+;---------------  VIDEO  TAROLOK   --------------------
+CURV:  	DEFB  	255	;0-NEM VILLOG A CURSOR
+VILK:	DEFB   	10,0  	;CURSOR VILLOGAS KESL.
+SND:   	DEFB   	00    	;HANG KIKAPCS. KESL.
+SE:    	DEFB   	0FFh 	;EQU FFh HANG ENGEDELYEZES
+IORAK:	DEFW   	2986  	;ORA KESLELTETES
+IORA:  	DEFB   	20    	;ORA
+PERC:	DEFB   	25    	;PERC
+;
+M6:    	DEFB   	128   	;6-0S PORT TUKORKEPE
+GRF:   	DEFB   	0     	;GRF MODE 0: NINCS
+			;	  2: GRF2
+			;	  4: GRF4
+PMAGY: 	DEFB   	0FFH  	; 0 NINCS PRINTERKONVERZIO
+			; 0FF MAGYAR KARAKTEREK KONVERZIOJA
+CURX:  	DEFB   	00    	;CURSOR X-POZICIO
+CURY:  	DEFB   	00    	;CURSOR Y-FOZICIO
+CURA:  	DEFW   	32768 	;CURSOR MEMORIA CIME
+CURK:  	DEFB   	255   	;0 HA NEM KELL CURSOR
+CURM:  	DEFS   	10,0   	;A CURSOR ALATTI BYTE-ok
+CURC:  	DEFB   	00    	;>0 CURSOR CIMZES JON
+CURI:  	DEFB   	00    	;FF INVERZ KIIRAS,0 NEM
+LENTX:	DEFB   	00    	;25. SOR X-POZICIO
+CRGEN  	EQU    	1460
+MBC:   	DEFW   	00
+USTACK:	DEFW  	0
+ITST:  	DEFW   	0
+PCONF: 	DEFB   	0
+MHL:   	DEFW   	00
+;***************  DISK PARAMETER BLOC ******************
+DPT:   	DEFB	0,0,0,0,0,0,0,0
+	DEFW   	DRB
+	DEFW   	DPB
+	DEFW   	CSV
+	DEFW   	ALV
+	DEFB   	0,0,0,0,0,0,0,0
+	DEFW   	DRB
+	DEFW   	DPBB
+	DEFW   	CSVB
+	DEFW   	ALVB
+DRB:   	DEFS	128,0
+DPB:   	DEFB   	72,0,4,15,0,67h,1,127,0,0C0h,0,32,0,2,0
+CSV:  	DEFS   	32
+ALV:  	DEFS   	45
+DPBB: 	DEFB   	36,0,3,7,0,0B3h,0,95,0,0E0h,0,16,0,2,0
+CSVB: 	DEFS   	16
+ALVB:	DEFS	24
+FEJTAB:	DEFB	0,81+128,1,0,3,41,2,0
+CHTAB:	defs	950
+CURS:	defs	10
+	defb   	008h,008h,03Eh,06Bh,063h,07Fh,063h,063h,000h,000h
+	defb   	008h,008h,07Eh,068h,060h,07Ch,060h,07Eh,000h,000h
+	defb   	008h,008h,03Ch,018h,018h,018h,018h,03Ch,000h,000h
+	defb   	008h,008h,03Eh,06Bh,063h,063h,063h,03Eh,000h,000h
+	defb   	014h,000h,03Eh,063h,063h,063h,03Eh,03Eh,000h,000h
+	defb   	014h,014h,03Eh,063h,063h,063h,063h,03Eh,000h,000h
+	defb   	008h,008h,06Bh,063h,063h,063h,063h,03Eh,000h,000h
+	defb   	014h,000h,063h,063h,063h,063h,063h,03Eh,000h,000h
+	defb   	014h,014h,077h,063h,063h,063h,063h,03Eh,000h,000h
+	defb   	000h,000h,000h,000h,01Fh,01Fh,018h,018h,018h,018h
+	defb   	018h,018h,018h,018h,01Fh,01Fh,000h,000h,000h,000h
+	defb   	018h,018h,018h,018h,018h,018h,018h,018h,018h,018h
+	defb   	018h,018h,018h,018h,01Fh,01Fh,018h,018h,018h,018h
+	defb   	000h,000h,000h,000h,0FFh,0FFh,018h,018h,018h,018h
+	defb	018h,018h,018h,018h,0FFh,0FFh,018h,018h,018h,018h
+	defb	000h,000h,000h,000h,000h,000h,000h,000h,000h,000h
+	defb	008h,008h,008h,03Ch,006h,03Eh,066h,03Eh,000h,000h
+	defb	008h,008h,008h,03Ch,066h,07Eh,060h,03Ch,000h,000h
+	defb	008h,008h,000h,038h,018h,018h,018h,03Ch,000h,000h
+	defb 	008h,008h,008h,03Ch,066h,066h,066h,03Ch,000h,000h
+	defb	000h,024h,000h,03Ch,066h,066h,066h,03Ch,000h,000h
+	defb	024h,024h,000h,03Ch,066h,066h,066h,03Ch,000h,000h
+	defb	008h,008h,008h,066h,066h,066h,066h,03Eh,000h,000h
+	defb	000h,024h,000h,066h,066h,066h,066h,03Eh,000h,000h
+	defb	024h,024h,000h,066h,066h,066h,066h,03Eh,000h,000h
+	defb	000h,000h,000h,000h,0F8h,0F8h,018h,018h,018h,018h
+	defb	018h,018h,018h,018h,0F8h,0F8h,000h,000h,000h,000h
+	defb	000h,000h,000h,000h,0FFh,0FFh,000h,000h,000h,000h
+	defb	018h,018h,018h,018h,0F8h,0F8h,018h,018h,018h,018h
+	defb	018h,018h,018h,018h,0FFh,0FFh,000h,000h,000h,000h
+	defb	000h,000h,000h,000h,000h,000h,000h,000h,000h,000h
+	defb	000h,000h,000h,000h,000h,000h,000h,000h,000h,000h
+	DEFS	32
+biosstack:	defs	48
+itstack:	defs	64
+BOOTSTACK	equ	$
+szabad::
+;****************************************************** 
+	END
+
+
+
